@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Remote System Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+  body, html {
+    margin: 0; padding: 0; height: 100%;
+    background: #000;
+    color: #00ffc8;
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #container {
+    position: relative;
+    width: 90vw;
+    max-width: 900px;
+    height: 90vh;
+    background: #010101;
+    border: 1px solid #00ffc855;
+    box-shadow: 0 0 40px #00ffc855;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    z-index: 10;
+  }
+
+  #bgGrid {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(0,255,200,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,200,0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #scanline {
+    position: absolute;
+    top: -50px; left: 0; right: 0;
+    height: 50px;
+    background: linear-gradient(180deg, transparent, rgba(0,255,200,0.1), transparent);
+    animation: scanlineMove 3s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  @keyframes scanlineMove {
+    0% { top: -50px; }
+    100% { top: 100%; }
+  }
+
+  #terminal {
+    position: relative;
+    flex: 1;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    z-index: 12;
+    font-size: 1.1rem;
+    line-height: 1.4;
+  }
+
+  .glitchText {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 4rem;
+    color: #00ffc8;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    mix-blend-mode: screen;
+    animation: glitch 2s infinite;
+    z-index: 20;
+    opacity: 0;
+  }
+
+  @keyframes glitch {
+    0% {
+      text-shadow: 2px 0 #00ffe5, -2px 0 #00ffc8;
+      opacity: 1;
+    }
+    20% {
+      text-shadow: -2px 0 #00ffe5, 2px 0 #00ffc8;
+      opacity: 0.8;
+    }
+    40% {
+      text-shadow: 2px 2px #00ffe5, -2px -2px #00ffc8;
+      opacity: 1;
+    }
+    60% {
+      text-shadow: -2px 2px #00ffe5, 2px -2px #00ffc8;
+      opacity: 0.8;
+    }
+    80% {
+      text-shadow: 2px -2px #00ffe5, -2px 2px #00ffc8;
+      opacity: 1;
+    }
+    100% {
+      text-shadow: 2px 0 #00ffe5, -2px 0 #00ffc8;
+      opacity: 1;
+    }
+  }
+
+  #sorryMessage {
+    position: fixed;
+    top: 60%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    color: #00ffc8;
+    white-space: nowrap;
+    opacity: 0;
+    z-index: 21;
+  }
+
+  #k4ngzenMessage {
+    position: fixed;
+    top: 55%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.8rem;
+    color: #00ffc8;
+    background: #002222cc;
+    border: 1px solid #00ffc8aa;
+    padding: 20px 30px;
+    border-radius: 8px;
+    white-space: nowrap;
+    z-index: 22;
+    text-align: center;
+  }
+
+  #continueBtn {
+    margin-top: 15px;
+    background: #00ffc8;
+    border: none;
+    color: #000;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+  }
+
+  #continueBtn:hover {
+    background: #00ccaa;
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 10px;
+    background: #00ffc8;
+    margin-left: 3px;
+    animation: blinkCursor 1s steps(2, start) infinite;
+  }
+
+  @keyframes blinkCursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .miniTerminal {
+    position: fixed;
+    background: #001010cc;
+    border: 1px solid #00ffc880;
+    color: #00ffc8cc;
+    font-size: 0.75rem;
+    font-family: 'Share Tech Mono', monospace;
+    padding: 6px 10px;
+    opacity: 0;
+    border-radius: 4px;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+    animation-name: fadeInOut;
+    animation-timing-function: ease-in-out;
+  }
+
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: scale(0.8) translateY(10px); }
+    20% { opacity: 1; transform: scale(1) translateY(0); }
+    80% { opacity: 1; transform: scale(1) translateY(0); }
+    100% { opacity: 0; transform: scale(0.8) translateY(-10px); }
+  }
+</style>
+</head>
+<body>
+  <div id="container">
+    <div id="bgGrid"></div>
+    <div id="scanline"></div>
+    <div id="terminal"></div>
+  </div>
+
+  <div class="glitchText" id="accessGranted">ACCESS GRANTED</div>
+  <div id="sorryMessage"></div>
+  <div id="k4ngzenMessage" style="display:none;">
+    Pesan dari k4ngzen:<br />
+    <button id="continueBtn">Continue</button>
+  </div>
+
+<script>
+  const terminal = document.getElementById('terminal');
+  const accessGranted = document.getElementById('accessGranted');
+  const sorryMessage = document.getElementById('sorryMessage');
+  const k4ngzenMessage = document.getElementById('k4ngzenMessage');
+  const continueBtn = document.getElementById('continueBtn');
+
+  const logs = [
+    "[SYS] Initializing secure environment...",
+    "[NET] Connecting to node 192.168.1.1...",
+    "[NET] Handshake complete.",
+    "[AUTH] Authenticating access token...",
+    "[AUTH] Access token accepted.",
+    "[SYS] Escalating privileges...",
+    "[XPLT] Uploading payload...",
+    "[XPLT] Remote shell opened.",
+    "[DATA] Extracting confidential files...",
+    "[TRACE] Obfuscating trace route...",
+    "[SYS] Clearing logs...",
+    "[SYS] Breach finalized."
+  ];
+
+  async function typeLine(text, delay = 30) {
+    return new Promise(resolve => {
+      let i = 0;
+      terminal.innerHTML += '<span class="cursor"></span>';
+      const cursor = terminal.querySelector('.cursor');
+      function type() {
+        if (i < text.length) {
+          cursor.insertAdjacentText('beforebegin', text[i]);
+          i++;
+          terminal.scrollTop = terminal.scrollHeight;
+          setTimeout(type, delay + Math.random() * 30);
+        } else {
+          cursor.remove();
+          terminal.innerHTML += '\n';
+          terminal.scrollTop = terminal.scrollHeight;
+          resolve();
+        }
+      }
+      type();
+    });
+  }
+
+  function speakText(text) {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'id-ID';
+      utterance.rate = 1;
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  function createMiniTerminal() {
+    const miniTerm = document.createElement('div');
+    miniTerm.classList.add('miniTerminal');
+    const miniLogs = [
+      "ping 192.168.1.1 -t",
+      "tracert google.com",
+      "netstat -an",
+      "ipconfig /all",
+      "nmap -sV 10.0.0.1",
+      "ssh user@192.168.1.1",
+      "cat /etc/passwd",
+      "top",
+      "htop",
+      "tail -f /var/log/syslog"
+    ];
+    miniTerm.textContent = miniLogs[Math.floor(Math.random() * miniLogs.length)];
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    miniTerm.style.left = Math.random() * (vw - 120) + 'px';
+    miniTerm.style.top = Math.random() * (vh - 40) + 'px';
+    const duration = 3000 + Math.random() * 3000;
+    miniTerm.style.animationDuration = duration + 'ms';
+    const scale = 0.6 + Math.random() * 0.6;
+    miniTerm.style.transform = `scale(${scale})`;
+    document.body.appendChild(miniTerm);
+    miniTerm.addEventListener('animationend', () => {
+      miniTerm.remove();
+    });
+  }
+
+  async function runLogs() {
+    const miniTerminalInterval = setInterval(createMiniTerminal, 700);
+    for (const line of logs) {
+      await typeLine(line);
+    }
+    clearInterval(miniTerminalInterval);
+    accessGranted.style.opacity = '1';
+    await new Promise(r => setTimeout(r, 2000));
+    k4ngzenMessage.style.display = 'block';
+    return new Promise(resolve => {
+      continueBtn.onclick = () => {
+        k4ngzenMessage.style.display = 'none';
+        resolve();
+      };
+    });
+  }
+
+  async function showSorryMessage() {
+    const sorryText = "Sorry ya, kita hack laptop-nya hehe...";
+    let idx = 0;
+    function typeSorry() {
+      if (idx < sorryText.length) {
+        sorryMessage.textContent += sorryText[idx];
+        idx++;
+        setTimeout(typeSorry, 80 + Math.random() * 40);
+      }
+    }
+    sorryMessage.style.opacity = '1';
+    typeSorry();
+    speakText(sorryText);
+  }
+
+  (async () => {
+    await runLogs();
+    await showSorryMessage();
+  })();
+</script>
+</body>
+</html>
